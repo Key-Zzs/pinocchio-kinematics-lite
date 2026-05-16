@@ -47,15 +47,16 @@ class PinocchioKinematics:
         model_name: str | None = None,
     ) -> None:
         pin_mod = _require_pinocchio()
-        self.urdf_path = str(Path(urdf_path).expanduser().resolve())
-        if not Path(self.urdf_path).is_file():
-            raise FileNotFoundError(f"URDF does not exist: {self.urdf_path}")
+        self.resolved_urdf_path = str(Path(urdf_path).expanduser().resolve())
+        self.urdf_path = self.resolved_urdf_path
+        if not Path(self.resolved_urdf_path).is_file():
+            raise FileNotFoundError(f"URDF does not exist: {self.resolved_urdf_path}")
         self.end_effector_frame = str(end_effector_frame)
         self.root_frame = None if root_frame is None else str(root_frame)
         self.mesh_dir = None if mesh_dir is None else str(Path(mesh_dir).expanduser().resolve())
         self.model_name = model_name
 
-        self.model = pin_mod.buildModelFromUrdf(self.urdf_path)
+        self.model = pin_mod.buildModelFromUrdf(self.resolved_urdf_path)
         self.data = self.model.createData()
 
         self._locked_joint_names = set(locked_joint_names or [])

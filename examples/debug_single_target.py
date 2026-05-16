@@ -74,6 +74,7 @@ def main():
 
     payload = {
         "urdf_path": kin.urdf_path,
+        "resolved_urdf_path": getattr(kin, "resolved_urdf_path", kin.urdf_path),
         "end_effector_frame": kin.end_effector_frame,
         "joint_names": kin.list_joints(),
         "q_target": q_target.tolist(),

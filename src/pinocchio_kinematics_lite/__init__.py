@@ -6,6 +6,7 @@ from .profiles.nero import (
     DEFAULT_NERO_END_EFFECTOR_FRAME,
     DEFAULT_NERO_JOINT_LIMITS,
     DEFAULT_NERO_JOINT_NAMES,
+    DEFAULT_NERO_URDF_RESOURCE,
     NeroKinematics,
 )
 from .resources import get_nero_urdf_path
@@ -22,6 +23,7 @@ __all__ = [
     "DEFAULT_NERO_END_EFFECTOR_FRAME",
     "DEFAULT_NERO_JOINT_LIMITS",
     "DEFAULT_NERO_JOINT_NAMES",
+    "DEFAULT_NERO_URDF_RESOURCE",
     "IKResult",
     "NeroKinematics",
     "PinocchioKinematics",

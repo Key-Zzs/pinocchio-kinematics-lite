@@ -6,26 +6,27 @@
 pytest tests -v
 ```
 
-Useful focused checks:
+Focused checks:
 
 ```bash
-pytest tests/test_no_vendor_dependency.py -v
 pytest tests/test_custom_urdf_loading.py -v
+pytest tests/test_fk_ik_consistency.py -v
+pytest tests/test_jacobian_consistency.py -v
+pytest tests/test_joint_limits.py -v
 pytest tests/test_nero_profile.py -v
+pytest tests/test_no_vendor_dependency.py -v
 ```
 
 ## IK Benchmark
 
+Nero profile:
+
 ```bash
 python benchmarks/benchmark_ik.py \
   --robot-profile nero \
-  --num-samples 1000 \
-  --seed 0 \
-  --max-iters 100 \
-  --pos-tol 1e-4 \
-  --ori-tol 1e-3 \
-  --output results/ik_benchmark_1000.json \
-  --log-failures results/ik_failures_1000.jsonl
+  --num-samples 100 \
+  --output results/ik_benchmark_nero_100.json \
+  --log-failures results/ik_failures_nero_100.jsonl
 ```
 
 Custom URDF:
@@ -34,17 +35,29 @@ Custom URDF:
 python benchmarks/benchmark_ik.py \
   --urdf-path path/to/robot.urdf \
   --end-effector-frame tool0 \
-  --num-samples 200
+  --num-samples 100 \
+  --output results/ik_benchmark_custom_100.json
 ```
 
 ## Trajectory Continuity Benchmark
+
+Nero profile:
 
 ```bash
 python benchmarks/benchmark_trajectory_continuity.py \
   --robot-profile nero \
   --num-samples 300 \
-  --output results/trajectory_benchmark_300.json \
-  --log-failures results/trajectory_failures_300.jsonl
+  --output results/trajectory_benchmark_nero_300.json
+```
+
+Custom URDF:
+
+```bash
+python benchmarks/benchmark_trajectory_continuity.py \
+  --urdf-path path/to/robot.urdf \
+  --end-effector-frame tool0 \
+  --num-samples 300 \
+  --output results/trajectory_benchmark_custom_300.json
 ```
 
 ## Debug One Target
@@ -53,19 +66,22 @@ python benchmarks/benchmark_trajectory_continuity.py \
 python examples/debug_single_target.py --robot-profile nero --seed 7
 ```
 
-## Tolerances
+For a custom URDF:
 
-Strict tolerances, such as `pos_tol=1e-5` and `ori_tol=1e-4`, are useful for regression tests on reachable targets generated from FK.
-
-Deployment tolerances are often looser, such as `pos_tol=1e-4` to `1e-3` and `ori_tol=1e-3` to `1e-2`, depending on robot calibration, TCP definition, and downstream controller behavior.
+```bash
+python examples/debug_single_target.py \
+  --urdf-path path/to/robot.urdf \
+  --end-effector-frame tool0 \
+  --seed 7
+```
 
 ## Metrics
 
 - `success_rate`: fraction of samples whose IK result passed position, orientation, and joint-limit checks
 - `timeout_rate`: fraction of samples that reached `max_iters`
-- `position_error`: Euclidean TCP translation error in meters
+- `position_error`: Euclidean translation error in meters
 - `orientation_error`: geodesic SO(3) angle error in radians
-- `p95_latency_ms` / `p99_latency_ms`: latency tail for solver calls
+- `p95_latency_ms` and `p99_latency_ms`: latency tail for solver calls
 - `configuration_jump_count`: number of consecutive IK solutions whose joint-space step exceeded `--jump-threshold`
 
-For redundant 7-DoF arms, do not expect `q_solution == q_target`. Evaluate IK by checking `FK(q_solution)` against the target pose.
+For redundant arms, do not expect `q_solution == q_target`. Evaluate IK by checking `FK(q_solution)` against the target pose.

@@ -174,6 +174,7 @@ def main():
     results = {
         "robot_profile": args.robot_profile if args.urdf_path is None else "custom_urdf",
         "urdf_path": kin.urdf_path,
+        "resolved_urdf_path": getattr(kin, "resolved_urdf_path", kin.urdf_path),
         "end_effector_frame": kin.end_effector_frame,
         "joint_names": kin.list_joints(),
         "num_samples": int(args.num_samples),

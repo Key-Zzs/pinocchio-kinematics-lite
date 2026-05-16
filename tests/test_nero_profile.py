@@ -30,8 +30,16 @@ def test_nero_fk_ik_jacobian_basic(nero_kin):
     assert ori_err < 1e-6
 
 
-def test_nero_default_urdf_is_not_vendor_fallback(nero_kin):
+def test_nero_default_urdf_is_not_vendor_fallback(pinocchio_available, monkeypatch):
+    monkeypatch.delenv("NERO_URDF_PATH", raising=False)
+    nero_kin = NeroKinematics()
     normalized = nero_kin.urdf_path.replace("\\", "/")
+    resolved = nero_kin.resolved_urdf_path.replace("\\", "/")
     assert "pyAgxArm" not in normalized
     assert "asserts/agx_arm_urdf" not in normalized
+    assert f"/{'home'}/" not in normalized
     assert normalized.endswith("assets/nero/nero_description.urdf")
+    assert "pyAgxArm" not in resolved
+    assert "asserts/agx_arm_urdf" not in resolved
+    assert f"/{'home'}/" not in resolved
+    assert resolved.endswith("assets/nero/nero_description.urdf")

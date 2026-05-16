@@ -20,9 +20,6 @@ dependencies = [
 test = [
     "pytest>=7.0",
 ]
-pinocchio = [
-    "pin>=3.0.0",
-]
 
 [project.urls]
 Homepage = "https://github.com/Key-Zzs/pinocchio-kinematics-lite"
@@ -34,8 +31,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 pinocchio_kinematics_lite = [
     "assets/nero/nero_description.urdf",
-    "assets/nero/meshes/**/*.stl",
-    "assets/nero/meshes/**/*.dae",
+    "assets/nero/meshes/**/*",
 ]
 
 [tool.setuptools]

@@ -1,54 +1,67 @@
 # Dependency Audit
 
-## Original Vendor Dependencies
+## Removed Content
 
-The repository originally mixed kinematics, hardware SDK code, teleop code, and robot-specific debug scripts. The main vendor/hardware dependencies found in the legacy tree were:
+This repository was cleaned into a standalone kinematics library. The following legacy/vendor/hardware content was removed from the repository body:
 
-- `pyAgxArm`
-- AgileX CAN and SDK modules
-- `zerorpc`
-- teleop client/server modules
-- hardware methods such as `get_tcp_pose()`, `get_joint_angles()`, `move_j()`, `move_js()`, and `servo_p_OL()`
-- SDK response assumptions such as `.msg`
-- URDF fallback paths under `pyAgxArm/asserts/agx_arm_urdf`
+- `pyAgxArm/`
+- `nero/`
+- `docs/effector/`
+- `docs/nero/`
+- `docs/piper/`
+- `docs/can_user.md`
+- `docs/Q&A.md`
+- `docs/ubuntu_24_04_pip_install.md`
+- `README_pyAgxArm.md`
+- `README_zh-CN.md`
+- `requirements.txt`
+- `rm_tmp.sh`
+- `results/`
+- all checked-in `__pycache__/` directories and `*.pyc` files
 
-## Removed From Core
+The removed tree included CAN communication code, hardware drivers, teleop server/client code, old Nero-specific kinematics experiments, SDK examples, vendor API docs, and generated runtime artifacts.
 
-The new package is under `src/pinocchio_kinematics_lite` and is the only package discovered by `pyproject.toml`. Default dependencies no longer include CAN, `zerorpc`, `pyAgxArm`, SDK modules, PyBullet, visualization stacks, or teleop code.
+## Kept Nero Resources
 
-The legacy vendor/teleop directories may still exist in the checkout for reference, but they are not imported by the core package and are excluded from packaging.
+Nero remains only as a built-in robot profile:
 
-## Core Dependency List
+- `src/pinocchio_kinematics_lite/assets/nero/nero_description.urdf`
+- `src/pinocchio_kinematics_lite/assets/nero/meshes/`
+- `src/pinocchio_kinematics_lite/profiles/nero.py`
+- `examples/quick_start_nero.py`
+- `tests/test_nero_profile.py`
 
+The bundled URDF was adjusted to use package-local mesh paths. No fallback path points into a vendor SDK tree or a user-specific absolute directory.
+
+## Core Dependency Boundary
+
+The importable package under `src/pinocchio_kinematics_lite/` is limited to:
+
+- `pinocchio`
 - `numpy`
-- `pinocchio` runtime module, normally installed from conda-forge as `pinocchio`
-- Python standard library modules such as `pathlib`, `dataclasses`, `typing`, `json`, `time`, and `importlib.resources`
+- Python standard-library modules such as `pathlib`, `dataclasses`, `typing`, `time`, and `importlib.resources`
 
-Tests use `pytest`. Benchmarks use only standard library modules and NumPy.
+Test code uses `pytest`. Benchmarks use only the package API, NumPy, and standard-library modules.
 
-## Optional Integration Boundary
+The core package must not contain imports or runtime hooks for pyAgxArm, AgileX SDK modules, zerorpc, teleop code, CAN drivers, hardware methods such as `get_tcp_pose()`, `get_joint_angles()`, `move_j()`, `move_js()`, or SDK response assumptions such as `.msg`.
 
-Any future vendor SDK integration should live outside `src/pinocchio_kinematics_lite`, for example:
-
-- `examples/pyagxarm_integration.py`
-- `adapters/pyagxarm_adapter.py`
-- `docs/integration_pyagxarm.md`
-
-Such files must use `try/except ImportError` and give a clear message when the SDK is not installed.
-
-## URDF Loading Priority
+## Nero Loading Priority
 
 `NeroKinematics` resolves the URDF in this order:
 
 1. explicit `urdf_path`
 2. `NERO_URDF_PATH`
-3. bundled `pinocchio_kinematics_lite/assets/nero/nero_description.urdf`
+3. bundled package asset: `pinocchio_kinematics_lite/assets/nero/nero_description.urdf`
 
-It does not fall back to `pyAgxArm/asserts/agx_arm_urdf`, SDK installation directories, or user-specific absolute paths.
+For the bundled profile, the public `urdf_path` and `resolved_urdf_path` identify the package asset. The internal filesystem path used to initialize Pinocchio is also available as `filesystem_urdf_path`.
 
 ## Verification
 
+Run:
+
 ```bash
+python -m compileall -q src tests benchmarks examples
+
 python - <<'PY'
 import sys
 import pinocchio_kinematics_lite as pkl
@@ -57,9 +70,13 @@ print("pyAgxArm" in sys.modules)
 print("zerorpc" in sys.modules)
 PY
 
-pytest tests/test_no_vendor_dependency.py -v
+pytest tests -v
 
-grep -R "pyAgxArm\|AgxArm\|agilex\|zerorpc\|get_tcp_pose\|get_joint_angles\|move_j\|move_js\|servo_p_OL\|\.msg\|asserts/agx_arm_urdf" -n src tests benchmarks examples README.md
+grep -R "pyAgxArm\|AgxArm\|agilex\|zerorpc\|teleop\|get_tcp_pose\|get_joint_angles\|move_j\|move_js\|servo_p_OL\|\.msg\|asserts/agx_arm_urdf\|/home/" -n src/pinocchio_kinematics_lite
 ```
 
-The grep may intentionally find text in this audit document or optional integration examples, but it should not find vendor imports in `src/pinocchio_kinematics_lite`.
+The last command should produce no output for the core package.
+
+## Why Nero Is A Profile
+
+The package is not a Nero-only SDK. Nero support is intentionally small: a URDF/mesh asset bundle plus `NeroKinematics`, which only selects default joint names, end-effector frame, and the bundled URDF before delegating to `PinocchioKinematics`. All FK, IK, Jacobian, limit, and transform behavior lives in the generic core.
