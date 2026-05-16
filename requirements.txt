@@ -1,0 +1,7 @@
+numpy>=1.24
+
+# Pinocchio is commonly installed from conda-forge:
+#   conda install -c conda-forge pinocchio eigenpy -y
+#
+# Some Linux environments can use the cmeel wheels instead:
+#   pip install pin
