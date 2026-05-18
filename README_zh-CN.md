@@ -96,6 +96,68 @@ result = kin.inverse_kinematics(pose, q_init=q)
 
 `inverse_kinematics()` 返回一个 `IKResult`，包含 `success`、`q`、`position_error`、`orientation_error`、`iterations`、`solve_time_ms`、`reason`、`best_q` 和 `last_q`。
 
+## 运行时使用流程
+
+`PinocchioKinematics` 刻意保持与遥操作和硬件控制栈解耦。运行时应用应在运动学对象外部维护自己的关节状态缓存、安全检查和命令下发层。
+
+通用流程如下：
+
+1. 解析 URDF，并选择末端 frame、主动关节和可选关节限位。
+2. 创建 `PinocchioKinematics`。
+3. 读取或选择初始关节向量 `q_seed`。
+4. 将每一帧目标位姿转换成 IK 支持的输入格式。对于 `[x, y, z, roll, pitch, yaw]` 形式的扁平目标，可使用 `pose_matrix_from_xyz_rpy()`。
+5. 如果命令目标是 TCP/tool frame，而不是 URDF 里的末端 frame，则用 `T_world_ee = T_world_tcp @ inv(T_ee_tcp)` 转换到 URDF 末端目标。
+6. 调用 `inverse_kinematics(..., q_init=q_seed)`，检查返回的 `IKResult`，执行应用层安全检查，然后用被接受的命令更新 `q_seed`。
+
+伪代码如下：
+
+```python
+import os
+import numpy as np
+from pinocchio_kinematics_lite import (
+    DEFAULT_NERO_JOINT_NAMES,
+    PinocchioKinematics,
+    get_robot_urdf_path,
+    pose_matrix_from_xyz_rpy,
+)
+
+urdf_path = get_robot_urdf_path("nero", os.getenv("NERO_URDF_PATH"))
+kin = PinocchioKinematics(
+    urdf_path=urdf_path,
+    end_effector_frame="link7",
+    active_joint_names=DEFAULT_NERO_JOINT_NAMES,
+    joint_limits=joint_limits,
+)
+
+q_seed = read_current_joint_state()  # 由应用提供
+
+while control_loop_is_running():
+    target_pose6 = receive_target_pose()  # [x, y, z, roll, pitch, yaw]
+    T_world_target = pose_matrix_from_xyz_rpy(target_pose6[:3], target_pose6[3:])
+
+    if target_is_tcp_frame:
+        T_ee_tcp = pose_matrix_from_xyz_rpy(tcp_offset[:3], tcp_offset[3:])
+        T_world_target = T_world_target @ np.linalg.inv(T_ee_tcp)
+
+    result = kin.inverse_kinematics(
+        T_world_target,
+        q_init=q_seed,
+        max_iters=60,
+        pos_tol=1e-4,
+        ori_tol=5e-3,
+    )
+    if not result.success:
+        handle_ik_failure(result)
+        continue
+
+    q_cmd = kin.clip_to_joint_limits(result.q)
+    q_cmd = limit_joint_step(q_seed, q_cmd)  # 可选的应用层安全限制
+    send_joint_target(q_cmd)  # 应用自行实现
+    q_seed = q_cmd
+```
+
+当目标以 6D 扁平 pose 表示时，请先用 `pose_matrix_from_xyz_rpy()` 转为矩阵再调用 `inverse_kinematics()`。IK API 支持 4x4 矩阵、pose 字典、Pinocchio 风格 SE3 对象，或 `(position, orientation)` 元组。
+
 ## 基准测试
 
 内置 profiles：

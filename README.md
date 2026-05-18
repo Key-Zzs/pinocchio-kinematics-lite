@@ -96,6 +96,68 @@ result = kin.inverse_kinematics(pose, q_init=q)
 
 `inverse_kinematics()` returns an `IKResult` with `success`, `q`, `position_error`, `orientation_error`, `iterations`, `solve_time_ms`, `reason`, `best_q`, and `last_q`.
 
+## Runtime Usage Flow
+
+`PinocchioKinematics` is intentionally independent of any teleop or hardware-control stack. A runtime application should keep its own joint-state cache, safety checks, and command-sending layer around the kinematics object.
+
+General flow:
+
+1. Resolve the URDF and choose the end-effector frame, active joints, and optional joint limits.
+2. Construct `PinocchioKinematics`.
+3. Read or choose an initial joint vector `q_seed`.
+4. Convert each target pose to a supported IK input format. For flat `[x, y, z, roll, pitch, yaw]` targets, use `pose_matrix_from_xyz_rpy()`.
+5. If the command target is a TCP/tool frame instead of the URDF end-effector frame, convert it with `T_world_ee = T_world_tcp @ inv(T_ee_tcp)`.
+6. Call `inverse_kinematics(..., q_init=q_seed)`, inspect the returned `IKResult`, apply application-level safety checks, then update `q_seed` with the accepted command.
+
+Pseudocode:
+
+```python
+import os
+import numpy as np
+from pinocchio_kinematics_lite import (
+    DEFAULT_NERO_JOINT_NAMES,
+    PinocchioKinematics,
+    get_robot_urdf_path,
+    pose_matrix_from_xyz_rpy,
+)
+
+urdf_path = get_robot_urdf_path("nero", os.getenv("NERO_URDF_PATH"))
+kin = PinocchioKinematics(
+    urdf_path=urdf_path,
+    end_effector_frame="link7",
+    active_joint_names=DEFAULT_NERO_JOINT_NAMES,
+    joint_limits=joint_limits,
+)
+
+q_seed = read_current_joint_state()  # application-provided
+
+while control_loop_is_running():
+    target_pose6 = receive_target_pose()  # [x, y, z, roll, pitch, yaw]
+    T_world_target = pose_matrix_from_xyz_rpy(target_pose6[:3], target_pose6[3:])
+
+    if target_is_tcp_frame:
+        T_ee_tcp = pose_matrix_from_xyz_rpy(tcp_offset[:3], tcp_offset[3:])
+        T_world_target = T_world_target @ np.linalg.inv(T_ee_tcp)
+
+    result = kin.inverse_kinematics(
+        T_world_target,
+        q_init=q_seed,
+        max_iters=60,
+        pos_tol=1e-4,
+        ori_tol=5e-3,
+    )
+    if not result.success:
+        handle_ik_failure(result)
+        continue
+
+    q_cmd = kin.clip_to_joint_limits(result.q)
+    q_cmd = limit_joint_step(q_seed, q_cmd)  # optional application safety
+    send_joint_target(q_cmd)  # application-specific
+    q_seed = q_cmd
+```
+
+When the target is represented as a flat 6D pose, convert it with `pose_matrix_from_xyz_rpy()` before calling `inverse_kinematics()`. The IK API accepts a 4x4 matrix, a pose dict, a Pinocchio-like SE3 object, or `(position, orientation)` tuples.
+
 ## Benchmarks
 
 Built-in profiles:
