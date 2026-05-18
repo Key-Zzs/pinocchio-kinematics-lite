@@ -2,7 +2,7 @@
 
 [中文](README_zh-CN.md) | [English](README.md)
 
-A lightweight Pinocchio-based FK/IK/Jacobian library for URDF robot arms, with built-in support for the AgileX Nero 7-DoF arm.
+A lightweight Pinocchio-based FK/IK/Jacobian library for URDF robot arms, with built-in robot profiles and custom URDF support.
 
 ## Overview
 
@@ -14,13 +14,27 @@ The package is intentionally independent from vendor control stacks:
 - no AgileX SDK dependency
 - no teleop server, client, CAN transport, or hardware-control layer
 - generic `PinocchioKinematics` for custom URDF arms
-- built-in `NeroKinematics` profile for the AgileX Nero 7-DoF arm
+- built-in profile registry for Nero, Franka Panda, Franka Panda + Robotiq, and ARX R5
 
 ## Scope
 
 This library targets fixed-base serial robot arms described by URDF. It is useful for offline kinematics checks, simple IK targets, benchmarks, and applications that already have their own robot-control layer.
 
-It is not a motion planner, collision checker, hardware controller, teleop system, or full dynamics framework. Floating bases, mimic-joint coupling, gripper mechanics, and closed-chain robots are outside the current high-level API.
+It is not a motion planner, collision checker, hardware controller, teleop system, or full dynamics framework. Floating bases, mimic-joint coupling, coupled gripper mechanics, and closed-chain robots are outside the current high-level API. Multi-branch URDFs should be registered with one active chain per profile.
+
+## Built-In Profiles
+
+Use `create_robot_kinematics(profile_name)` for bundled robot assets:
+
+| Profile name | Default end-effector frame | Active joints |
+|---|---|---|
+| `nero` | `link7` | `joint1` ... `joint7` |
+| `franka_panda` | `link7` | `joint1` ... `joint7` |
+| `franka_panda_robotiq` | `robotiq_arg2f_base_link` | Panda arm joints only |
+| `arx_r5` | `right_link6` | `right_joint1` ... `right_joint6` |
+| `arx_r5_left` | `left_link6` | `left_joint1` ... `left_joint6` |
+
+`arx_r5` uses the right arm from the bundled dual-arm ARX URDF. Use `arx_r5_left` for the left arm. Profile aliases such as `franka-panda`, `franka-panda-robotiq`, and `arx_r5_right` are accepted by the CLI and factory.
 
 ## Installation
 
@@ -40,14 +54,14 @@ pip install -e ".[test]"
 
 The package metadata keeps runtime dependencies minimal and does not force a Pinocchio wheel, because Pinocchio packaging differs by platform.
 
-## Quick Start: Nero
+## Quick Start: Built-In Profile
 
 ```python
 import numpy as np
-from pinocchio_kinematics_lite import NeroKinematics
+from pinocchio_kinematics_lite import create_robot_kinematics
 
-kin = NeroKinematics()
-q = np.zeros(7)
+kin = create_robot_kinematics("franka_panda")
+q = np.zeros(len(kin.list_joints()))
 
 pose = kin.forward_kinematics(q)
 J = kin.jacobian(q)
@@ -57,11 +71,11 @@ print(result.success)
 print(result.q)
 ```
 
-`NeroKinematics` is a thin wrapper over `PinocchioKinematics`. It resolves the Nero URDF in this order:
+`NeroKinematics` remains as a compatibility wrapper over `PinocchioKinematics`; new built-in robots use the profile registry. URDF resolution order is:
 
 1. explicit `urdf_path`
-2. `NERO_URDF_PATH`
-3. bundled package asset: `pinocchio_kinematics_lite/assets/nero/nero_description.urdf`
+2. the profile-specific environment variable, for example `NERO_URDF_PATH`, `FRANKA_PANDA_URDF_PATH`, `FRANKA_PANDA_ROBOTIQ_URDF_PATH`, or `ARX_R5_URDF_PATH`
+3. bundled package asset under `pinocchio_kinematics_lite/assets/...`
 
 ## Quick Start: Custom URDF
 
@@ -84,10 +98,13 @@ result = kin.inverse_kinematics(pose, q_init=q)
 
 ## Benchmarks
 
-Nero profile:
+Built-in profiles:
 
 ```bash
 python benchmarks/benchmark_ik.py --robot-profile nero --num-samples 100
+python benchmarks/benchmark_ik.py --robot-profile franka_panda --num-samples 100
+python benchmarks/benchmark_ik.py --robot-profile franka_panda_robotiq --num-samples 100
+python benchmarks/benchmark_ik.py --robot-profile arx_r5 --num-samples 100
 python benchmarks/benchmark_trajectory_continuity.py --robot-profile nero --num-samples 300
 ```
 
@@ -107,11 +124,11 @@ python benchmarks/benchmark_trajectory_continuity.py \
 
 ## Benchmark: Legacy Solver vs Pinocchio Solver
 
-This comparison uses FK-generated reachable targets and continuous trajectory targets for the AgileX Nero 7-DoF arm. It measures the trade-off between strict accuracy and latency, and highlights the diagnostics and generic URDF architecture available from `Pinocchio_Solver`. The legacy `Solver` values are provided for context; this benchmark does not claim that one solver is universally better.
+This comparison uses FK-generated reachable targets and continuous trajectory targets for the AgileX Nero 7-DoF arm. It measures the trade-off between strict accuracy and latency, and highlights the diagnostics and generic URDF architecture available from `PinocchioKinematics`. The legacy `Solver` values are provided for context; this benchmark does not claim that one solver is universally better.
 
 ### Single-target IK, 1,000 samples
 
-| Metric | Legacy Solver | Pinocchio_Solver |
+| Metric | Legacy Solver | PinocchioKinematics |
 |---|---|---|
 | Success rate | 100.0% | 99.7% |
 | Timeout rate | 0.0% | 0.3% |
@@ -129,7 +146,7 @@ This comparison uses FK-generated reachable targets and continuous trajectory ta
 
 ### Single-target IK, 10,000 samples
 
-| Metric | Legacy Solver | Pinocchio_Solver |
+| Metric | Legacy Solver | PinocchioKinematics |
 |---|---|---|
 | Success rate | 100.0% | 99.65% |
 | Timeout rate | 0.0% | 0.35% |
@@ -147,7 +164,7 @@ This comparison uses FK-generated reachable targets and continuous trajectory ta
 
 ### Continuous trajectory IK, 1,000 steps
 
-| Metric | Legacy Solver | Pinocchio_Solver |
+| Metric | Legacy Solver | PinocchioKinematics |
 |---|---|---|
 | Success rate | 100.0% | 100.0% |
 | Timeout rate | 0.0% | 0.0% |
@@ -172,15 +189,19 @@ This comparison uses FK-generated reachable targets and continuous trajectory ta
 
 - The legacy `Solver` achieves 100% strict-threshold success and near machine-precision pose recovery on FK-generated targets.
 - The legacy `Solver` is much slower, around 17–18 ms mean latency for single-target IK and around 12.6 ms mean latency on the trajectory benchmark.
-- `Pinocchio_Solver` is about two orders of magnitude faster in mean latency on these benchmarks.
-- `Pinocchio_Solver` provides structured diagnostics (`iterations`, `reason`, `best_q`, `last_q`, `solve_time_ms`).
-- `Pinocchio_Solver` is the implementation aligned with this repository's generic URDF architecture.
-- The rare single-target failures for `Pinocchio_Solver` are strict-threshold max-iteration cases, not obviously divergent solutions.
+- `PinocchioKinematics` is about two orders of magnitude faster in mean latency on these benchmarks.
+- `PinocchioKinematics` provides structured diagnostics (`iterations`, `reason`, `best_q`, `last_q`, `solve_time_ms`).
+- `PinocchioKinematics` is the implementation aligned with this repository's generic URDF architecture.
+- The rare single-target failures for `PinocchioKinematics` are strict-threshold max-iteration cases, not obviously divergent solutions.
 - In the logged failures, residual position errors are typically around 1e-05 to 4e-05 m and rotation errors are very small, so deployment users may choose a relaxed tolerance depending on hardware accuracy and control requirements.
-- In the 1,000-step trajectory benchmark, both solvers reached 100% success and 0 configuration jumps, while `Pinocchio_Solver` had much lower latency.
+- In the 1,000-step trajectory benchmark, both solvers reached 100% success and 0 configuration jumps, while `PinocchioKinematics` had much lower latency.
 
-The current benchmark supports this claim: **`Pinocchio_Solver` is better suited for this repository's real-time, diagnostic, and generic URDF use case, while the legacy `Solver` remains stronger in strict-threshold success rate and machine-precision pose recovery on Nero-specific FK-generated targets.** It does not claim that `Pinocchio_Solver` is universally better than every solver.
+The current benchmark supports this claim: **`PinocchioKinematics` is better suited for this repository's real-time, diagnostic, and generic URDF use case, while the legacy `Solver` remains stronger in strict-threshold success rate and machine-precision pose recovery on Nero-specific FK-generated targets.** It does not claim that `PinocchioKinematics` is universally better than every solver.
 
 ## Vendor Independence
 
-The repository body is the generic package under `src/pinocchio_kinematics_lite`, plus tests, examples, benchmarks, docs, and the bundled Nero URDF/meshes. The core package imports Pinocchio, NumPy, and Python standard-library modules only. It does not import pyAgxArm, AgileX SDK modules, zerorpc, teleop code, CAN code, or hardware drivers.
+The repository body is the generic package under `src/pinocchio_kinematics_lite`, plus tests, examples, benchmarks, docs, and bundled URDF/mesh assets. The core package imports Pinocchio, NumPy, and Python standard-library modules only. It does not import pyAgxArm, AgileX SDK modules, zerorpc, teleop code, CAN code, or hardware drivers.
+
+## Adding Profiles
+
+Built-in robot-profile names are registered in `src/pinocchio_kinematics_lite/profiles/registry.py`. Add a `RobotProfile` entry with the URDF resource path, default end-effector frame, active joint names, optional root frame, optional joint-limit override, and optional aliases. Also make sure package data includes the new URDF and meshes.

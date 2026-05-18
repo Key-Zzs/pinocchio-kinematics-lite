@@ -11,6 +11,7 @@ import numpy as np
 from .ik import IKResult
 from .limits import (
     JointLimitViolation,
+    as_joint_limits,
     clip_to_joint_limits,
     joint_limit_violations,
     sample_random_q as sample_from_limits,
@@ -43,6 +44,7 @@ class PinocchioKinematics:
         root_frame: str | None = None,
         active_joint_names: Iterable[str] | None = None,
         locked_joint_names: Iterable[str] | None = None,
+        joint_limits: Iterable[Iterable[float]] | None = None,
         mesh_dir: str | Path | None = None,
         model_name: str | None = None,
     ) -> None:
@@ -66,7 +68,7 @@ class PinocchioKinematics:
         self._active_v_idx = [int(self.model.joints[joint_id].idx_v) for joint_id in self._active_joint_ids]
         self.nq_active = len(self.active_joint_names)
 
-        self._joint_limits = self._resolve_joint_limits()
+        self._joint_limits = self._resolve_joint_limits(joint_limits)
         self._default_frame_id = self._frame_id(self.end_effector_frame)
         self._root_frame_id = None if self.root_frame is None else self._frame_id(self.root_frame)
 
@@ -276,13 +278,19 @@ class PinocchioKinematics:
             raise ValueError("No scalar active joints were found in the URDF")
         return names
 
-    def _resolve_joint_limits(self) -> np.ndarray:
+    def _resolve_joint_limits(self, joint_limits: Iterable[Iterable[float]] | None) -> np.ndarray:
         lower = np.asarray(self.model.lowerPositionLimit, dtype=float)
         upper = np.asarray(self.model.upperPositionLimit, dtype=float)
         limits = np.zeros((self.nq_active, 2), dtype=float)
         for i, q_idx in enumerate(self._active_q_idx):
             limits[i, 0] = lower[q_idx]
             limits[i, 1] = upper[q_idx]
+        if joint_limits is not None:
+            limits = as_joint_limits(joint_limits)
+            if limits.shape != (self.nq_active, 2):
+                raise ValueError(
+                    f"Expected joint_limits with shape ({self.nq_active}, 2), got {limits.shape}"
+                )
         return limits
 
     def _joint_id(self, joint_name: str) -> int:

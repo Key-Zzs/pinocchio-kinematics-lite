@@ -13,7 +13,6 @@ This repository was cleaned into a standalone kinematics library. The following 
 - `docs/Q&A.md`
 - `docs/ubuntu_24_04_pip_install.md`
 - `README_pyAgxArm.md`
-- `README_zh-CN.md`
 - `requirements.txt`
 - `rm_tmp.sh`
 - `results/`
@@ -21,17 +20,21 @@ This repository was cleaned into a standalone kinematics library. The following 
 
 The removed tree included CAN communication code, hardware drivers, teleop server/client code, old Nero-specific kinematics experiments, SDK examples, vendor API docs, and generated runtime artifacts.
 
-## Kept Nero Resources
+## Kept Robot Resources
 
-Nero remains only as a built-in robot profile:
+Bundled robot assets remain only as built-in robot profiles:
 
 - `src/pinocchio_kinematics_lite/assets/nero/nero_description.urdf`
 - `src/pinocchio_kinematics_lite/assets/nero/meshes/`
+- `src/pinocchio_kinematics_lite/assets/franka_panda/`
+- `src/pinocchio_kinematics_lite/assets/arx_r5/`
+- `src/pinocchio_kinematics_lite/profiles/registry.py`
 - `src/pinocchio_kinematics_lite/profiles/nero.py`
 - `examples/quick_start_nero.py`
 - `tests/test_nero_profile.py`
+- `tests/test_robot_profile_registry.py`
 
-The bundled URDF was adjusted to use package-local mesh paths. No fallback path points into a vendor SDK tree or a user-specific absolute directory.
+Bundled URDFs use package-local mesh paths. No fallback path points into a vendor SDK tree or a user-specific absolute directory.
 
 ## Core Dependency Boundary
 
@@ -45,13 +48,13 @@ Test code uses `pytest`. Benchmarks use only the package API, NumPy, and standar
 
 The core package must not contain imports or runtime hooks for pyAgxArm, AgileX SDK modules, zerorpc, teleop code, CAN drivers, hardware methods such as `get_tcp_pose()`, `get_joint_angles()`, `move_j()`, `move_js()`, or SDK response assumptions such as `.msg`.
 
-## Nero Loading Priority
+## Robot Profile Loading Priority
 
-`NeroKinematics` resolves the URDF in this order:
+Built-in profiles resolve URDFs in this order:
 
 1. explicit `urdf_path`
-2. `NERO_URDF_PATH`
-3. bundled package asset: `pinocchio_kinematics_lite/assets/nero/nero_description.urdf`
+2. the profile-specific environment variable, such as `NERO_URDF_PATH`, `FRANKA_PANDA_URDF_PATH`, `FRANKA_PANDA_ROBOTIQ_URDF_PATH`, or `ARX_R5_URDF_PATH`
+3. bundled package asset under `pinocchio_kinematics_lite/assets/...`
 
 For the bundled profile, the public `urdf_path` and `resolved_urdf_path` identify the package asset. The internal filesystem path used to initialize Pinocchio is also available as `filesystem_urdf_path`.
 
@@ -77,6 +80,6 @@ grep -R "pyAgxArm\|AgxArm\|agilex\|zerorpc\|teleop\|get_tcp_pose\|get_joint_angl
 
 The last command should produce no output for the core package.
 
-## Why Nero Is A Profile
+## Why Robots Are Profiles
 
-The package is not a Nero-only SDK. Nero support is intentionally small: a URDF/mesh asset bundle plus `NeroKinematics`, which only selects default joint names, end-effector frame, and the bundled URDF before delegating to `PinocchioKinematics`. All FK, IK, Jacobian, limit, and transform behavior lives in the generic core.
+The package is not a robot-specific SDK. Built-in robot support is intentionally small: URDF/mesh asset bundles plus profile entries that select default joint names, end-effector frames, root frames when needed, and bundled URDF paths before delegating to `PinocchioKinematics`. All FK, IK, Jacobian, limit, and transform behavior lives in the generic core.

@@ -15,7 +15,12 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from pinocchio_kinematics_lite import NeroKinematics, PinocchioKinematics, pose_errors
+from pinocchio_kinematics_lite import (
+    PinocchioKinematics,
+    create_robot_kinematics,
+    list_robot_profiles,
+    pose_errors,
+)
 
 
 def scalar_stats(values) -> dict[str, float]:
@@ -41,10 +46,12 @@ def scalar_stats(values) -> dict[str, float]:
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--robot-profile", choices=("nero",), default="nero")
+    parser.add_argument("--robot-profile", choices=list_robot_profiles(include_aliases=True), default="nero")
     parser.add_argument("--urdf-path", type=Path, default=None)
     parser.add_argument("--end-effector-frame", default=None)
+    parser.add_argument("--root-frame", default=None)
     parser.add_argument("--active-joint-names", nargs="*", default=None)
+    parser.add_argument("--locked-joint-names", nargs="*", default=None)
     parser.add_argument("--num-samples", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--max-iters", type=int, default=100)
@@ -69,11 +76,17 @@ def make_kinematics(args):
         return PinocchioKinematics(
             urdf_path=args.urdf_path,
             end_effector_frame=args.end_effector_frame,
+            root_frame=args.root_frame,
             active_joint_names=args.active_joint_names,
+            locked_joint_names=args.locked_joint_names,
         )
-    if args.robot_profile == "nero":
-        return NeroKinematics(end_effector_frame=args.end_effector_frame or "link7")
-    raise SystemExit(f"Unsupported robot profile: {args.robot_profile}")
+    return create_robot_kinematics(
+        args.robot_profile,
+        end_effector_frame=args.end_effector_frame,
+        root_frame=args.root_frame,
+        active_joint_names=args.active_joint_names,
+        locked_joint_names=args.locked_joint_names,
+    )
 
 
 def failure_record(index, q_target, q_init, result, pos_err, ori_err, reason):
@@ -158,6 +171,7 @@ def main():
         "urdf_path": kin.urdf_path,
         "resolved_urdf_path": getattr(kin, "resolved_urdf_path", kin.urdf_path),
         "end_effector_frame": kin.end_effector_frame,
+        "root_frame": kin.root_frame,
         "joint_names": kin.list_joints(),
         "num_samples": int(args.num_samples),
         "success_count": int(success_count),

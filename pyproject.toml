@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pinocchio-kinematics-lite"
 version = "0.1.0"
-description = "A lightweight Pinocchio-based FK/IK/Jacobian library for URDF robot arms, with built-in support for the AgileX Nero 7-DoF arm."
+description = "A lightweight Pinocchio-based FK/IK/Jacobian library for URDF robot arms, with built-in robot profiles and custom URDF support."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
     { name = "Key-Zzs" }
@@ -30,8 +30,10 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 pinocchio_kinematics_lite = [
-    "assets/nero/nero_description.urdf",
-    "assets/nero/meshes/**/*",
+    "assets/**/*.urdf",
+    "assets/**/*.stl",
+    "assets/**/*.STL",
+    "assets/**/*.dae",
 ]
 
 [tool.setuptools]

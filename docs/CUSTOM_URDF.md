@@ -12,6 +12,14 @@ kin = PinocchioKinematics(
 )
 ```
 
+For bundled robots, prefer the profile registry:
+
+```python
+from pinocchio_kinematics_lite import create_robot_kinematics
+
+kin = create_robot_kinematics("franka_panda")
+```
+
 ## Finding Frame Names
 
 After loading a URDF:
@@ -56,3 +64,18 @@ The high-level API focuses on fixed-base serial manipulators with one scalar coo
 - full dynamics workflows are out of scope
 
 For complex robots, build a reduced or simplified URDF for the arm chain you want to solve.
+
+## Adding A Built-In Profile
+
+Profile names are registered in `src/pinocchio_kinematics_lite/profiles/registry.py`.
+Add a `RobotProfile` entry with:
+
+- `name`
+- `resource_parts`
+- `end_effector_frame`
+- `active_joint_names`
+- optional `root_frame`
+- optional `joint_limits`
+- optional aliases and environment-variable override
+
+For multi-branch robots, register one profile per active chain instead of exposing every scalar joint at once.

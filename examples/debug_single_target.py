@@ -15,15 +15,22 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from pinocchio_kinematics_lite import NeroKinematics, PinocchioKinematics, pose_errors
+from pinocchio_kinematics_lite import (
+    PinocchioKinematics,
+    create_robot_kinematics,
+    list_robot_profiles,
+    pose_errors,
+)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--robot-profile", choices=("nero",), default="nero")
+    parser.add_argument("--robot-profile", choices=list_robot_profiles(include_aliases=True), default="nero")
     parser.add_argument("--urdf-path", type=Path, default=None)
     parser.add_argument("--end-effector-frame", default=None)
+    parser.add_argument("--root-frame", default=None)
     parser.add_argument("--active-joint-names", nargs="*", default=None)
+    parser.add_argument("--locked-joint-names", nargs="*", default=None)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--q", type=float, nargs="*", default=None, help="Target active-joint vector")
     parser.add_argument("--q-init", type=float, nargs="*", default=None, help="IK initial active-joint vector")
@@ -40,9 +47,17 @@ def make_kinematics(args):
         return PinocchioKinematics(
             urdf_path=args.urdf_path,
             end_effector_frame=args.end_effector_frame,
+            root_frame=args.root_frame,
             active_joint_names=args.active_joint_names,
+            locked_joint_names=args.locked_joint_names,
         )
-    return NeroKinematics(end_effector_frame=args.end_effector_frame or "link7")
+    return create_robot_kinematics(
+        args.robot_profile,
+        end_effector_frame=args.end_effector_frame,
+        root_frame=args.root_frame,
+        active_joint_names=args.active_joint_names,
+        locked_joint_names=args.locked_joint_names,
+    )
 
 
 def main():
@@ -76,6 +91,7 @@ def main():
         "urdf_path": kin.urdf_path,
         "resolved_urdf_path": getattr(kin, "resolved_urdf_path", kin.urdf_path),
         "end_effector_frame": kin.end_effector_frame,
+        "root_frame": kin.root_frame,
         "joint_names": kin.list_joints(),
         "q_target": q_target.tolist(),
         "q_init": q_init.tolist(),

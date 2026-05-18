@@ -15,11 +15,12 @@ pytest tests/test_jacobian_consistency.py -v
 pytest tests/test_joint_limits.py -v
 pytest tests/test_nero_profile.py -v
 pytest tests/test_no_vendor_dependency.py -v
+pytest tests/test_robot_profile_registry.py -v
 ```
 
 ## IK Benchmark
 
-Nero profile:
+Built-in profiles:
 
 ```bash
 python benchmarks/benchmark_ik.py \
@@ -27,6 +28,21 @@ python benchmarks/benchmark_ik.py \
   --num-samples 100 \
   --output results/ik_benchmark_nero_100.json \
   --log-failures results/ik_failures_nero_100.jsonl
+
+python benchmarks/benchmark_ik.py \
+  --robot-profile franka_panda \
+  --num-samples 100 \
+  --output results/ik_benchmark_franka_panda_100.json
+
+python benchmarks/benchmark_ik.py \
+  --robot-profile franka_panda_robotiq \
+  --num-samples 100 \
+  --output results/ik_benchmark_franka_panda_robotiq_100.json
+
+python benchmarks/benchmark_ik.py \
+  --robot-profile arx_r5 \
+  --num-samples 100 \
+  --output results/ik_benchmark_arx_r5_100.json
 ```
 
 Custom URDF:
@@ -41,13 +57,18 @@ python benchmarks/benchmark_ik.py \
 
 ## Trajectory Continuity Benchmark
 
-Nero profile:
+Built-in profiles:
 
 ```bash
 python benchmarks/benchmark_trajectory_continuity.py \
   --robot-profile nero \
   --num-samples 300 \
   --output results/trajectory_benchmark_nero_300.json
+
+python benchmarks/benchmark_trajectory_continuity.py \
+  --robot-profile arx_r5_left \
+  --num-samples 300 \
+  --output results/trajectory_benchmark_arx_r5_left_300.json
 ```
 
 Custom URDF:
@@ -64,6 +85,8 @@ python benchmarks/benchmark_trajectory_continuity.py \
 
 ```bash
 python examples/debug_single_target.py --robot-profile nero --seed 7
+python examples/debug_single_target.py --robot-profile franka_panda --seed 7
+python examples/debug_single_target.py --robot-profile arx_r5 --seed 7
 ```
 
 For a custom URDF:
