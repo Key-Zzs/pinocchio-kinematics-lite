@@ -122,6 +122,36 @@ python benchmarks/benchmark_trajectory_continuity.py \
   --num-samples 300
 ```
 
+## Benchmark: Multi-Robot Solver Performance
+
+This section summarizes the IK solver performance across different robot arm types using PinocchioKinematics. All benchmarks were conducted with 1,000 and 10,000 random samples, measuring success rate, latency, accuracy, and iteration statistics.
+
+### Performance Summary (1,000 Samples)
+
+| Robot Profile | DOF | Success Rate | Mean Latency (ms) | Mean Iterations | Mean Position Error (m) | Mean Orientation Error (rad) |
+|---|---|---|---|---|---|---|
+| `arx_r5` | 6 | 100.0% | 0.095 | 2.94 | 2.68e-05 | 7.00e-05 |
+| `franka_panda` | 7 | 100.0% | 0.097 | 3.16 | 1.77e-05 | 3.04e-05 |
+| `franka_panda_robotiq` | 7 | 100.0% | 0.099 | 3.18 | 1.71e-05 | 2.45e-05 |
+| `nero` | 7 | 99.8% | 0.099 | 3.26 | 1.75e-05 | 3.86e-05 |
+
+### Performance Summary (10,000 Samples)
+
+| Robot Profile | DOF | Success Rate | Mean Latency (ms) | Mean Iterations | Mean Position Error (m) | Mean Orientation Error (rad) |
+|---|---|---|---|---|---|---|
+| `arx_r5` | 6 | 100.0% | 0.092 | 2.93 | 2.64e-05 | 6.69e-05 |
+| `franka_panda` | 7 | 99.96% | 0.096 | 3.17 | 1.65e-05 | 2.83e-05 |
+| `franka_panda_robotiq` | 7 | 99.96% | 0.098 | 3.17 | 1.66e-05 | 2.75e-05 |
+| `nero` | 7 | 99.91% | 0.097 | 3.20 | 1.79e-05 | 4.23e-05 |
+
+### Key Observations
+
+- **Consistent Performance**: All robot types achieve sub-millisecond mean latency (0.092–0.099 ms), demonstrating excellent real-time performance.
+- **Success Rate**: ARX R5 achieves 100% success rate in both test sets, while 7-DoF robots maintain 99.8–100% success rates with minimal timeout occurrences.
+- **DOF Impact**: The 6-DoF ARX R5 shows slightly lower iteration counts (2.93–2.94) compared to 7-DoF robots (3.16–3.26), reflecting the reduced complexity of the inverse kinematics problem.
+- **Accuracy**: Position errors remain consistently low across all robots (1.65–2.68e-05 m), with orientation errors in the 2.45–7.00e-05 rad range.
+- **Scalability**: Performance characteristics remain stable when scaling from 1,000 to 10,000 samples, indicating robust solver behavior under varying workloads.
+
 ## Benchmark: Legacy Solver vs Pinocchio Solver
 
 This comparison uses FK-generated reachable targets and continuous trajectory targets for the AgileX Nero 7-DoF arm. It measures the trade-off between strict accuracy and latency, and highlights the diagnostics and generic URDF architecture available from `PinocchioKinematics`. The legacy `Solver` values are provided for context; this benchmark does not claim that one solver is universally better.
